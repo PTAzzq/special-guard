@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>特种守护 SPECIAL GUARD</title>
+<link rel="stylesheet" href="css/style.css">
+<script type="importmap">
+{
+  "imports": {
+    "three": "./vendor/three.module.min.js"
+  }
+}
+</script>
+</head>
+<body>
+<div id="app">
+  <canvas id="game"></canvas>
+
+  <!-- ============ 游戏内 HUD ============ -->
+  <div id="hud" class="hidden">
+    <div class="hud-top">
+      <div class="hud-left">
+        <div class="hud-level"><span id="hud-level-name">关卡</span><span id="hud-level-id">01</span></div>
+        <div class="hud-timer" id="hud-timer">03:00</div>
+      </div>
+      <div class="hud-right">
+        <div class="hud-objective">
+          <div class="obj-row"><span class="obj-label">通缉目标</span><span class="obj-value" id="hud-criminals">0 / 0</span></div>
+          <div class="obj-row"><span class="obj-label">平民在场</span><span class="obj-value" id="hud-civilians">0</span></div>
+        </div>
+        <button id="btn-wanted" class="btn-ghost small">通缉令 <kbd>Tab</kbd></button>
+      </div>
+    </div>
+
+    <div id="crosshair">
+      <span class="ch-dot"></span>
+      <span class="ch-line ch-t"></span>
+      <span class="ch-line ch-b"></span>
+      <span class="ch-line ch-l"></span>
+      <span class="ch-line ch-r"></span>
+    </div>
+    <div id="hitmarker"></div>
+    <div id="scope-overlay" class="hidden">
+      <div class="scope-circle">
+        <div class="scope-cross-h"></div>
+        <div class="scope-cross-v"></div>
+        <div class="scope-mildots"></div>
+      </div>
+    </div>
+
+    <div class="hud-bottom">
+      <div id="reload-bar" class="hidden"><div id="reload-fill"></div><span>换弹中…</span></div>
+      <div class="hud-ammo">
+        <div class="ammo-num"><span id="hud-ammo">6</span><span class="ammo-sep">/</span><span id="hud-mag">6</span></div>
+        <div class="ammo-weapon"><span id="hud-weapon">基础左轮手枪</span><span id="hud-cls">手枪</span></div>
+      </div>
+    </div>
+
+    <div id="tutorial-hint" class="hidden">
+      <div class="tut-title">教学 · 操作提示</div>
+      <ul>
+        <li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 移动</li>
+        <li><span class="mouse">鼠标</span> 转向（点击画面锁定视角）</li>
+        <li><kbd>左键</kbd> 开火</li>
+        <li><kbd>R</kbd> 换弹</li>
+        <li><kbd>右键</kbd> 开镜（步枪/狙击枪）</li>
+        <li><kbd>Tab</kbd> 查看通缉令</li>
+        <li class="warn">误杀平民立即失败，计时归零罪犯逃脱</li>
+      </ul>
+    </div>
+    <div id="toast-area"></div>
+  </div>
+
+  <!-- ============ 通缉令（局内 Tab） ============ -->
+  <div id="wanted-overlay" class="overlay hidden">
+    <div class="wanted-sheet">
+      <div class="wanted-head">
+        <div class="wanted-title-wrap">
+          <div class="wanted-en">WANTED</div>
+          <div class="wanted-cn">通缉令</div>
+        </div>
+        <div class="wanted-sub" id="wanted-sub">本局共 1 名目标，辨认后开火</div>
+        <button class="btn-ghost" id="btn-close-wanted">关闭 <kbd>Tab</kbd></button>
+      </div>
+      <div class="wanted-list" id="wanted-list"></div>
+      <div class="wanted-foot">头像由本局同一套人物模型实时渲染，特征与场景中一一对应</div>
+    </div>
+  </div>
+
+  <!-- ============ 主菜单 ============ -->
+  <div id="screen-main" class="screen">
+    <div class="menu-bg"></div>
+    <div class="main-inner">
+      <div class="brand">
+        <div class="brand-en">SPECIAL GUARD</div>
+        <h1>特 种 守 护</h1>
+        <div class="brand-sub">第一人称反恐射击 · 通缉令辨识</div>
+      </div>
+      <div class="coins-bar">
+        <span class="coin-icon">$</span><span id="menu-coins">0</span><span class="coin-unit">游戏币</span>
+        <span class="coin-split"></span>
+        <span class="equipped">当前配枪：<b id="menu-equipped">基础左轮手枪</b></span>
+      </div>
+      <div class="main-buttons">
+        <button class="btn-primary" id="btn-play">开始行动</button>
+        <button class="btn-secondary" id="btn-armory">武 器 库</button>
+        <button class="btn-secondary" id="btn-levels">关 卡 选 择</button>
+        <button class="btn-ghost tiny" id="btn-reset">重置存档</button>
+      </div>
+      <div class="main-foot">
+        <div>每通关一关 +100 游戏币 · 共 10 关 · 首版</div>
+        <div class="dim">程序化占位素材 · Three.js · 无外部美术资源</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 武器库 ============ -->
+  <div id="screen-armory" class="screen hidden">
+    <div class="panel">
+      <div class="panel-head">
+        <h2>武器库</h2>
+        <div class="panel-head-right">
+          <span class="coins-inline"><span class="coin-icon">$</span><span id="armory-coins">0</span></span>
+          <button class="btn-ghost" id="btn-armory-back">返回</button>
+        </div>
+      </div>
+      <p class="panel-desc">价格按现实民用市场售价 ÷10 取整折算为游戏币。购买后永久持有，可在任意关卡前装备。</p>
+      <div id="armory-groups"></div>
+    </div>
+  </div>
+
+  <!-- ============ 关卡选择 ============ -->
+  <div id="screen-levels" class="screen hidden">
+    <div class="panel">
+      <div class="panel-head">
+        <h2>关卡选择</h2>
+        <div class="panel-head-right">
+          <span class="coins-inline"><span class="coin-icon">$</span><span id="levels-coins">0</span></span>
+          <button class="btn-ghost" id="btn-levels-back">返回</button>
+        </div>
+      </div>
+      <div id="level-grid" class="level-grid"></div>
+    </div>
+  </div>
+
+  <!-- ============ 关卡简报（含通缉令） ============ -->
+  <div id="screen-brief" class="screen hidden">
+    <div class="panel wide">
+      <div class="panel-head">
+        <h2 id="brief-title">关卡简报</h2>
+        <div class="panel-head-right">
+          <button class="btn-ghost" id="btn-brief-back">返回</button>
+        </div>
+      </div>
+      <div class="brief-body">
+        <div class="brief-left">
+          <div class="brief-line"><span>场景</span><b id="brief-scene">街道</b></div>
+          <div class="brief-line"><span>通缉目标</span><b id="brief-criminals">1 人</b></div>
+          <div class="brief-line"><span>平民人数</span><b id="brief-civilians">8 人</b></div>
+          <div class="brief-line"><span>时限</span><b id="brief-time">180 秒</b></div>
+          <div class="brief-line"><span>奖励</span><b class="gold">通关 +100 游戏币</b></div>
+          <div class="brief-line"><span>配枪</span><b id="brief-weapon">基础左轮手枪</b></div>
+          <div class="brief-rules">
+            <div class="rule ok">击毙全部通缉犯 → 通关</div>
+            <div class="rule bad">误杀任一平民 → 立即失败</div>
+            <div class="rule bad">计时归零 → 罪犯逃脱，任务失败</div>
+          </div>
+          <button class="btn-primary big" id="btn-brief-start">进入现场</button>
+        </div>
+        <div class="brief-right">
+          <div class="wanted-mini-head">通缉令 · 目标特征</div>
+          <div class="wanted-list compact" id="brief-wanted"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 结算 ============ -->
+  <div id="screen-result" class="screen hidden">
+    <div class="panel result-panel">
+      <div id="result-badge" class="result-badge">任务完成</div>
+      <div id="result-reason" class="result-reason"></div>
+      <div class="result-stats" id="result-stats"></div>
+      <div class="result-buttons">
+        <button class="btn-primary" id="btn-result-next">下一关</button>
+        <button class="btn-secondary" id="btn-result-retry">重新挑战</button>
+        <button class="btn-ghost" id="btn-result-menu">返回主菜单</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 暂停 ============ -->
+  <div id="screen-pause" class="screen hidden">
+    <div class="panel pause-panel">
+      <h2>已暂停</h2>
+      <p class="dim">点击"继续"恢复行动（会重新锁定鼠标）</p>
+      <div class="result-buttons">
+        <button class="btn-primary" id="btn-resume">继续</button>
+        <button class="btn-secondary" id="btn-pause-wanted">查看通缉令</button>
+        <button class="btn-ghost" id="btn-quit">放弃任务</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 触屏控制 ============ -->
+  <div id="touch-controls" class="hidden">
+    <div id="look-zone"></div>
+    <div id="joystick"><div id="joystick-knob"></div></div>
+    <div class="touch-right">
+      <button id="btn-touch-fire" class="touch-btn fire">开火</button>
+      <button id="btn-touch-reload" class="touch-btn small">换弹</button>
+      <button id="btn-touch-ads" class="touch-btn small">开镜</button>
+    </div>
+  </div>
+
+  <div id="rotate-tip" class="hidden">请将手机横屏以获得完整视野</div>
+  <div id="loading" class="screen">
+    <div class="loading-inner">
+      <div class="loading-title">特 种 守 护</div>
+      <div class="loading-bar"><span></span></div>
+      <div class="loading-sub">正在构筑现场…</div>
+    </div>
+  </div>
+</div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
