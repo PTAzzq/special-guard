@@ -9,6 +9,7 @@ import {
   HAIR_COLOR_HEX, BEARD_STYLES, HATS, BUILDS
 } from './config.js';
 import { pick, rand, randInt, mulberry32 } from './utils.js';
+import { portraitFeatures } from './pixelart.js';
 
 const matCache = new Map();
 function mat(hex, rough = 0.88, metal = 0.0, cacheKey) {
@@ -58,6 +59,8 @@ export function randomAppearance(rng, avoid = []) {
 
 /** 通缉令上展示的可判别特征（与模型参数严格对应） */
 export function describeFeatures(app) {
+  // 立绘模式下人物形象由图片决定，特征文案必须描述图片本身，否则玩家无法据此辨认
+  if (app && app.portrait) return portraitFeatures(app);
   const list = [];
   list.push(`身高约 ${app.heightCm} cm`);
   list.push(`${app.build.n}体型`);
@@ -434,7 +437,10 @@ export function attachHitboxes(root) {
   body.name = 'hitBody';
 
   const headBox = new THREE.Mesh(new THREE.BoxGeometry(0.16 * h, 0.16 * h, 0.16 * h), hitMat);
-  headBox.position.y = root.userData.parts.head.position.y;
+  // 3D 模型取头部 mesh 的高度；立绘（billboard）没有 parts，由 buildPortraitActor 给出 headY
+  headBox.position.y = root.userData.parts
+    ? root.userData.parts.head.position.y
+    : (root.userData.headY || 0.885 * h);
   headBox.name = 'hitHead';
 
   root.add(body, headBox);

@@ -4,6 +4,7 @@
 import { Game } from './game.js';
 import { createUI } from './ui.js';
 import { LEVELS } from './config.js';
+import { preloadPortraits } from './pixelart.js';
 
 const canvas = document.getElementById('game');
 const elLoading = document.getElementById('loading');
@@ -67,8 +68,17 @@ window.addEventListener('resize', checkOrientation);
 window.addEventListener('orientationchange', () => setTimeout(checkOrientation, 220));
 checkOrientation();
 
-// 让加载页至少停留一小段时间，避免闪烁
-setTimeout(boot, 320);
+// 让加载页至少停留一小段时间，避免闪烁。
+// 立绘必须先就位：通缉令头像是用 canvas 同步合成的，缺图会退化成色块。
+setTimeout(() => {
+  const bootSafely = () => boot();
+  preloadPortraits()
+    .then(bootSafely)
+    .catch(err => {
+      console.warn('[portrait] 立绘预加载异常，按缺图降级启动', err);
+      bootSafely();
+    });
+}, 320);
 
 // 方便调试
 window.__guard = () => ({ game, ui, LEVELS, IS_TOUCH });

@@ -5,6 +5,8 @@
  */
 import * as THREE from 'three';
 import { buildCharacter, describeFeatures } from './character.js';
+import { USE_PORTRAIT_NPC } from './config.js';
+import { renderPortraitBoard } from './pixelart.js';
 
 let renderer = null;
 let scene = null;
@@ -64,6 +66,9 @@ function ensure() {
  * @returns {string} dataURL
  */
 export function renderWantedAvatar(app) {
+  // 立绘模式：直接合成同一张立绘的证件照，保证通缉令与场景内 NPC 完全一致
+  if (USE_PORTRAIT_NPC && app && app.portrait) return renderPortraitBoard(app);
+
   const k = keyOf(app);
   if (cache.has(k)) return cache.get(k);
 
@@ -103,6 +108,8 @@ export function makeWantedEntry(app, index) {
   return {
     index,
     app,
+    // 非 0 表示这一条目用的是像素立绘（UI 侧据此切换图片裁切方式）
+    portrait: USE_PORTRAIT_NPC && app.portrait ? app.portrait : 0,
     avatar: renderWantedAvatar(app),
     features: describeFeatures(app)
   };

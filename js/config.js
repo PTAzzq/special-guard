@@ -10,6 +10,28 @@ export const NPC_HP = 100;            // 人物基础血量
 export const HEADSHOT_MULT = 2.5;     // 爆头伤害倍率
 
 /* ------------------------------------------------------------------ *
+ * 人物外观开关（换皮回退用）
+ *  NPC_STYLE = 'portrait' → 使用 assets/portraits/npc01..06.png 写实像素立绘
+ *  NPC_STYLE = 'model'    → 使用 character.js 原来的 3D 人形模型
+ * 两套外观共用同一套命中盒、AI、罪犯判定，改这一个常量即可整体回退。
+ * ------------------------------------------------------------------ */
+export const NPC_STYLE = 'portrait';
+/* 回退开关：默认 'portrait'（像素立绘）。
+ * 想恢复原来的 3D 模型人物，把上面 NPC_STYLE 改成 'model'，
+ * 或者不改代码、直接在网址后加 ?npc=model 临时切回。 */
+const _qs = typeof location !== 'undefined' ? new URLSearchParams(location.search) : null;
+export const USE_PORTRAIT_NPC = (_qs && _qs.get('npc') === 'model') ? false : NPC_STYLE === 'portrait';
+
+/* ------------------------------------------------------------------ *
+ * 像素化后期
+ *  PIXEL_SCALE < 1 时，3D 场景按降采样分辨率渲染，再由 CSS(pixelated) 放大，
+ *  得到统一的像素颗粒感。只影响 WebGL canvas，HUD/面板/弹窗全部是 DOM，
+ *  始终按 devicePixelRatio 清晰渲染，不会被模糊。
+ *  1 = 关闭（等比原生分辨率）
+ * ------------------------------------------------------------------ */
+export const PIXEL_SCALE = 0.6;
+
+/* ------------------------------------------------------------------ *
  * 武器库：1 把免费左轮 + 5 手枪 + 5 步枪 + 5 狙击枪
  * dmg 单发伤害 / rpm 理论射速 / mag 弹匣容量 / reload 换弹秒
  * recoil 后坐力强度 / spread 腰射散布(度) / ads 是否可开镜 / zoom 开镜倍率

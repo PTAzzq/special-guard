@@ -2,9 +2,12 @@
  * 游戏核心：第一人称控制、NPC 行为、命中判定、关卡流程
  */
 import * as THREE from 'three';
-import { WEAPONS_BY_ID, HEADSHOT_MULT, NPC_HP } from './config.js';
+import { WEAPONS_BY_ID, HEADSHOT_MULT, NPC_HP, USE_PORTRAIT_NPC, PIXEL_SCALE } from './config.js';
 import { buildWorld, isBlocked } from './world.js';
 import { buildCharacter, attachHitboxes, randomAppearance, animateCharacter } from './character.js';
+import {
+  buildPortraitActor, animatePortraitActor, updatePortraitFacing, assignPortraitLooks
+} from './pixelart.js';
 import { WeaponView } from './weapon.js';
 import { mulberry32, rand, clamp, lerp, damp, pick } from './utils.js';
 import { sfx } from './audio.js';
@@ -75,6 +78,13 @@ export function makeNpcApps(level) {
     colorCount[app.upper.c] = (colorCount[app.upper.c] || 0) + 1;
     civilApps.push(app);
   }
+
+  // 立绘模式下给每人分配「立绘编号 + 配色变体」，罪犯的组合全场唯一。
+  // 用独立随机源，避免消耗主 rng 影响 3D 模型模式下的原有分布。
+  if (USE_PORTRAIT_NPC) {
+    assignPortraitLooks(criminalApps, civilApps, mulberry32(level.id * 7919 + 2027));
+  }
+
   return { criminalApps, civilApps };
 }
 
@@ -84,8 +94,15 @@ export class Game {
     this.hooks = hooks;
     this.isTouch = IS_TOUCH;
 
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, IS_TOUCH ? 1.25 : 1.5));
+    this.renderer = new THREE.WebGLRenderer({
+      canvas,
+      // 像素化后期靠降采样放大实现，此时关掉 MSAA 让像素块边缘保持硬朗
+      antialias: PIXEL_SCALE > 0.999,
+      powerPreference: 'high-performance'
+    });
+    this.renderer.setPixelRatio(
+      Math.min(window.devicePixelRatio || 1, IS_TOUCH ? 1.25 : 1.5) * PIXEL_SCALE
+    );
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.03;
@@ -398,12 +415,15 @@ export class Game {
       const idx = isCriminal ? ci++ : vi++;
       const spot = spots[i] || { x: rand(rng, -b, b), z: rand(rng, -b, b) };
 
-      const group = buildCharacter(app);
+      const group = USE_PORTRAIT_NPC ? buildPortraitActor(app) : buildCharacter(app);
       group.position.set(spot.x, 0, spot.z);
       const yaw = rng() * Math.PI * 2;
       group.rotation.y = yaw;
       if (!this.isTouch) {
-        group.traverse(o => { if (o.isMesh && o.name !== 'hitBody' && o.name !== 'hitHead') o.castShadow = true; });
+        group.traverse(o => {
+          // 立绘的平面与接地阴影贴片不参与投影（用 userData.noShadow 标记）
+          if (o.isMesh && o.name !== 'hitBody' && o.name !== 'hitHead' && !o.userData.noShadow) o.castShadow = true;
+        });
       }
       attachHitboxes(group);
       this.scene.add(group);
@@ -420,6 +440,8 @@ export class Game {
         baseSpeed: isCriminal ? rand(rng, 1.2, 1.7) : rand(rng, 0.85, 1.55),
         fleeing: false,
         phase: rng() * 10,
+        // 立绘与 3D 模型的动画函数签名一致，这里绑定一次即可
+        animateFn: group.userData.billboard ? animatePortraitActor : animateCharacter,
         hitBody: group.userData.hitBody,
         hitHead: group.userData.hitHead
       };
@@ -477,7 +499,7 @@ export class Game {
   updateIdle(dt) {
     for (const n of this.npcs) {
       if (n.dead) { this.animateDeath(n, dt); continue; }
-      animateCharacter(n.group, dt * 0.4, 0);
+      (n.animateFn || animateCharacter)(n.group, dt * 0.4, 0);
     }
     this.weaponView.reloadT = this.reloading ? this.reloadT : -1;
     this.weaponView.update(dt, {
@@ -696,7 +718,7 @@ export class Game {
 
       n.group.position.set(n.pos.x, n.group.position.y, n.pos.z);
       n.group.rotation.y = n.yaw;
-      animateCharacter(n.group, dt, moving);
+      (n.animateFn || animateCharacter)(n.group, dt, moving);
     }
 
     // 远处人物 LOD：细节小件隐藏、关闭阴影投射，节省大量顶点与阴影开销
@@ -713,7 +735,9 @@ export class Game {
       const shadowOn = dist < 16;
       if (n._shadowOn !== shadowOn) {
         n._shadowOn = shadowOn;
-        n.group.traverse(o => { if (o.isMesh && !o.userData.fine) o.castShadow = shadowOn; });
+        n.group.traverse(o => {
+          if (o.isMesh && !o.userData.fine && !o.userData.noShadow) o.castShadow = shadowOn;
+        });
       }
     }
 
@@ -1007,8 +1031,19 @@ export class Game {
   }
 
   /* ---------------------------- 渲染 ---------------------------- */
+  /** 立绘 billboard：每帧渲染前统一朝向相机，并处理左右镜像 */
+  refreshPortraits() {
+    if (!USE_PORTRAIT_NPC) return;
+    const cam = this.camera;
+    for (const n of this.npcs) {
+      if (!n.group || !n.group.userData.billboard) continue;
+      updatePortraitFacing(n.group, cam);
+    }
+  }
+
   render(dt) {
     if (!this.scene) return;
+    this.refreshPortraits();
     const r = this.renderer;
     r.autoClear = false;
     r.clear();

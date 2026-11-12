@@ -18,7 +18,9 @@
 html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--txt);font-family:var(--font);}
 body{user-select:none;-webkit-user-select:none;touch-action:none;}
 #app{position:fixed;inset:0;overflow:hidden;}
-#game{position:absolute;inset:0;width:100%;height:100%;display:block;background:#05060a;}
+#game{position:absolute;inset:0;width:100%;height:100%;display:block;background:#05060a;image-rendering:pixelated;image-rendering:crisp-edges;}
+/* 立绘像素风：3D 场景按 PIXEL_SCALE 降采样后用像素化放大，HUD/面板仍按原生 DPR 清晰渲染 */
+.wcard-photo img.pf-portrait{object-fit:contain;background:radial-gradient(circle at 50% 42%,#2c323a,#14171c 74%);}
 .hidden{display:none !important;}
 kbd{display:inline-block;min-width:20px;padding:1px 5px;margin:0 1px;border:1px solid var(--line-2);border-bottom-width:2px;border-radius:4px;background:rgba(255,255,255,.07);font-family:var(--mono);font-size:11px;color:#cfd4db;text-align:center;}
 .dim{color:var(--dim);}

@@ -175,8 +175,10 @@ export function createUI(game) {
   }
 
   function wantedCardHtml(e) {
+    // 立绘模式的头像是整身像，用 pf-portrait 切到 contain，避免被 cover 裁掉关键识别特征
+    const imgCls = e.portrait ? ' class="pf-portrait"' : '';
     return `<div class="wcard">
-      <div class="wcard-photo"><img src="${e.avatar}" alt="目标 ${e.index + 1}"><span class="wcard-tag">WANTED</span></div>
+      <div class="wcard-photo"><img${imgCls} src="${e.avatar}" alt="目标 ${e.index + 1}"><span class="wcard-tag">WANTED</span></div>
       <div class="wcard-body">
         <div class="wcard-no">目标 ${String(e.index + 1).padStart(2, '0')}</div>
         <div class="wcard-feat">${e.features.map(f => `<div>· ${f}</div>`).join('')}</div>
