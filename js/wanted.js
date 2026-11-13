@@ -16,7 +16,8 @@ let bg = null;
 const cache = new Map();
 
 function keyOf(app) {
-  return [app.skin.c, app.upper.c, app.pants.c, app.hairStyle, app.hairColor,
+  return [app.look || 0, app.variant || 0,
+    app.skin.c, app.upper.c, app.pants.c, app.hairStyle, app.hairColor,
     app.beard, app.hat, app.build.n, app.heightCm, app.glasses ? 1 : 0].join('|');
 }
 
@@ -81,8 +82,10 @@ export function renderWantedAvatar(app) {
   }
 
   const ch = buildCharacter(app);
-  // 只取上半身：抬高相机对准头部，下方由背景板/画幅裁切
-  const headY = ch.userData.parts.head.position.y;
+  // 只取上半身：抬高相机对准头部，下方由背景板/画幅裁切。
+  // 新骨骼里 head 挂在 torso 下，头顶世界高度要用「腿长 + 躯干高 + 颅球中心」换算，
+  // 这样任意身高/体型的罪犯都能在 320x400 画幅里正脸居中。
+  const headY = ch.userData.legLen + ch.userData.torsoH + 0.062 * ch.userData.height;
   holder.add(ch);
 
   cam.aspect = 320 / 400;

@@ -4,7 +4,7 @@
 import * as THREE from 'three';
 import { WEAPONS_BY_ID, HEADSHOT_MULT, NPC_HP, USE_PORTRAIT_NPC, PIXEL_SCALE } from './config.js';
 import { buildWorld, isBlocked } from './world.js';
-import { buildCharacter, attachHitboxes, randomAppearance, animateCharacter } from './character.js';
+import { buildCharacter, attachHitboxes, randomAppearance, animateCharacter, assignModelLooks } from './character.js';
 import {
   buildPortraitActor, animatePortraitActor, updatePortraitFacing, assignPortraitLooks
 } from './pixelart.js';
@@ -79,10 +79,14 @@ export function makeNpcApps(level) {
     civilApps.push(app);
   }
 
-  // 立绘模式下给每人分配「立绘编号 + 配色变体」，罪犯的组合全场唯一。
-  // 用独立随机源，避免消耗主 rng 影响 3D 模型模式下的原有分布。
+  // 给每人分配「编号 + 配色变体」：3D 人形沿用同一张外观对照表（npc01~06），
+  // 立绘模式则直接决定用哪张图。罪犯的组合全场唯一，保证凭外形可锁定目标。
+  // 用独立随机源，避免消耗主 rng 影响其它分布。
+  const lookRng = mulberry32(level.id * 7919 + 2027);
   if (USE_PORTRAIT_NPC) {
-    assignPortraitLooks(criminalApps, civilApps, mulberry32(level.id * 7919 + 2027));
+    assignPortraitLooks(criminalApps, civilApps, lookRng);
+  } else {
+    assignModelLooks(criminalApps, civilApps, lookRng);
   }
 
   return { criminalApps, civilApps };
